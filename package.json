@@ -6,46 +6,52 @@
   "author": "SnapFury",
   "license": "MIT",
   "scripts": {
-    "start":   "electron .",
-    "dev":     "cross-env NODE_ENV=development electron .",
-    "build":   "electron-builder --win",
+    "start": "electron .",
+    "dev": "cross-env NODE_ENV=development electron .",
+    "build": "electron-builder --win",
     "build:unsigned": "electron-builder --win --config.win.certificateFile=null"
   },
   "dependencies": {
-    "electron-store":    "^8.2.0",
-    "ffmpeg-static":     "^5.2.0",
-    "node-record-lpcm16":"^1.0.1",
-    "obs-websocket-js":  "^5.0.5",
-    "vosk":              "^0.3.45"
+    "electron-store": "^8.2.0",
+    "ffmpeg-static": "^5.2.0",
+    "node-record-lpcm16": "^1.0.1",
+    "obs-websocket-js": "^5.0.5",
+    "vosk": "^0.3.39"
   },
   "devDependencies": {
-    "cross-env":         "^7.0.3",
-    "electron":          "^31.0.0",
-    "electron-builder":  "^24.13.3"
+    "cross-env": "^7.0.3",
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
   },
   "build": {
-    "appId":       "com.snapfury.clipfury",
+    "appId": "com.snapfury.clipfury",
     "productName": "ClipFury",
     "directories": {
       "output": "dist"
     },
     "win": {
-      "target":  "nsis",
-      "icon":    "assets/icon.ico",
+      "target": "nsis",
+      "icon": "assets/icon.ico",
       "requestedExecutionLevel": "asInvoker"
     },
     "nsis": {
-      "oneClick":         false,
+      "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "installerIcon":    "assets/icon.ico",
-      "uninstallerIcon":  "assets/icon.ico",
+      "installerIcon": "assets/icon.ico",
+      "uninstallerIcon": "assets/icon.ico",
       "installerHeaderIcon": "assets/icon.ico",
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName":     "ClipFury"
+      "shortcutName": "ClipFury"
     },
     "extraResources": [
-      { "from": "models/", "to": "models/", "filter": ["**/*"] }
+      {
+        "from": "models/",
+        "to": "models/",
+        "filter": [
+          "**/*"
+        ]
+      }
     ],
     "files": [
       "src/**/*",
