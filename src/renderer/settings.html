@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>ClipFury Settings</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Anton&family=Special+Elite&family=Barlow+Condensed:wght@400;600;700&display=swap');
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Special Elite', serif;
+      background: #f0e6c8;
+      color: #111;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Header */
+    .header {
+      background: #111;
+      border-bottom: 3px solid #C8952A;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .header img { width: 28px; height: 28px; border-radius: 50%; border: 2px solid #C8952A; }
+    .header-title {
+      font-family: 'Anton', sans-serif;
+      font-style: italic;
+      color: #C8952A;
+      font-size: 1.3rem;
+      letter-spacing: 2px;
+    }
+    .header-sub {
+      font-family: 'Special Elite', serif;
+      color: #888;
+      font-size: 0.7rem;
+      margin-left: auto;
+    }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      background: #111;
+      border-bottom: 3px solid #C8952A;
+    }
+    .tab {
+      font-family: 'Anton', sans-serif;
+      font-style: italic;
+      font-size: 0.85rem;
+      letter-spacing: 1px;
+      color: #888;
+      padding: 8px 16px;
+      cursor: pointer;
+      border-right: 1px solid #333;
+      transition: all 0.1s;
+    }
+    .tab:hover  { color: #C8952A; }
+    .tab.active { color: #C8952A; border-bottom: 3px solid #C8952A; margin-bottom: -3px; }
+
+    /* Content */
+    .content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+    }
+    .panel {
+      display: none;
+    }
+    .panel.active { display: block; }
+
+    /* Form elements */
+    .field { margin-bottom: 14px; }
+    .label {
+      font-family: 'Anton', sans-serif;
+      font-style: italic;
+      font-size: 0.8rem;
+      letter-spacing: 2px;
+      color: #111;
+      margin-bottom: 5px;
+      display: block;
+    }
+    .hint {
+      font-family: 'Special Elite', serif;
+      font-size: 0.72rem;
+      color: #888;
+      margin-top: 3px;
+    }
+    input[type="text"],
+    input[type="password"],
+    input[type="number"],
+    select {
+      width: 100%;
+      border: 3px solid #111;
+      background: #fdf8ec;
+      font-family: 'Special Elite', serif;
+      font-size: 0.9rem;
+      padding: 8px 10px;
+      outline: none;
+      box-shadow: 3px 3px 0 #111;
+      color: #111;
+    }
+    input:focus, select:focus { box-shadow: 4px 4px 0 #4A3DC8; }
+
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border: 3px solid #111;
+      background: #f8f0d8;
+      box-shadow: 3px 3px 0 #111;
+      cursor: pointer;
+      margin-bottom: 10px;
+    }
+    .toggle-box {
+      width: 24px; height: 24px;
+      border: 3px solid #111;
+      background: white;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.9rem;
+      flex-shrink: 0;
+    }
+    .toggle-box.on { background: #4A3DC8; color: white; }
+    .toggle-label  { font-family: 'Anton', sans-serif; font-style: italic; font-size: 0.85rem; letter-spacing: 1px; }
+
+    /* Section header */
+    .section-head {
+      background: #4A3DC8;
+      border: 3px solid #111;
+      padding: 5px 12px;
+      box-shadow: 3px 3px 0 #111;
+      margin-bottom: 12px;
+      display: inline-block;
+    }
+    .section-head span {
+      font-family: 'Anton', sans-serif;
+      font-style: italic;
+      color: #C8952A;
+      font-size: 0.85rem;
+      letter-spacing: 2px;
+    }
+
+    /* Buttons */
+    .btn {
+      font-family: 'Anton', sans-serif;
+      font-style: italic;
+      letter-spacing: 2px;
+      border: 3px solid #111;
+      cursor: pointer;
+      text-transform: uppercase;
+      padding: 9px 18px;
+      font-size: 0.9rem;
+      transition: transform 0.1s, box-shadow 0.1s;
+    }
+    .btn:hover  { transform: translate(-2px,-2px); box-shadow: 5px 5px 0 #111; }
+    .btn:active { transform: translate(2px,2px); }
+    .btn-primary { background: #4A3DC8; color: white; box-shadow: 4px 4px 0 #111; }
+    .btn-gold    { background: #C8952A; color: #111; box-shadow: 4px 4px 0 #111; }
+    .btn-neutral { background: #f0e6c8; color: #111; box-shadow: 3px 3px 0 #111; }
+    .btn-danger  { background: #8B2035; color: white; box-shadow: 3px 3px 0 #111; }
+
+    /* Status badge */
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border: 2px solid #111;
+      font-family: 'Special Elite', serif;
+      font-size: 0.8rem;
+    }
+    .status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+    }
+    .status-dot.green  { background: #2a6e2a; }
+    .status-dot.red    { background: #8B2035; }
+    .status-dot.yellow { background: #C8952A; }
+
+    /* Footer */
+    .footer {
+      background: #111;
+      border-top: 3px solid #C8952A;
+      padding: 10px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .version { font-family: 'Special Elite', serif; color: #444; font-size: 0.7rem; }
+
+    /* Upload panel */
+    .clip-info {
+      border: 3px solid #111;
+      background: #f8f0d8;
+      padding: 12px;
+      box-shadow: 3px 3px 0 #111;
+      margin-bottom: 14px;
+    }
+
+    .toast {
+      position: fixed; bottom: 60px; left: 50%;
+      transform: translateX(-50%);
+      background: #2a6e2a; color: white;
+      border: 3px solid #111; padding: 8px 20px;
+      box-shadow: 4px 4px 0 #111;
+      font-family: 'Anton', sans-serif; font-style: italic;
+      font-size: 0.9rem; letter-spacing: 1px;
+      display: none;
+    }
+    .toast.show { display: block; animation: fadeInOut 2.5s forwards; }
+    @keyframes fadeInOut {
+      0%{opacity:0;transform:translateX(-50%) translateY(10px);}
+      15%{opacity:1;transform:translateX(-50%) translateY(0);}
+      80%{opacity:1;}
+      100%{opacity:0;}
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <img src="../../assets/logo-header.png" alt="ClipFury" />
+    <div>
+      <div class="header-title">CLIPFURY</div>
+    </div>
+    <div class="header-sub">Settings</div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="general">GENERAL</div>
+    <div class="tab" data-tab="obs">OBS</div>
+    <div class="tab" data-tab="snapfury">SNAPFURY</div>
+    <div class="tab" data-tab="upload">UPLOAD</div>
+  </div>
+
+  <div class="content">
+
+    <!-- GENERAL TAB -->
+    <div class="panel active" id="tab-general">
+      <div class="section-head"><span>CLIP SETTINGS</span></div>
+
+      <div class="field">
+        <label class="label">CLIP LENGTH</label>
+        <select id="clipLength">
+          <option value="60">60 seconds</option>
+          <option value="90">90 seconds (recommended)</option>
+          <option value="180">3 minutes</option>
+        </select>
+        <div class="hint">How much gameplay to capture around each snap</div>
+      </div>
+
+      <div class="field">
+        <label class="label">SAVE FOLDER</label>
+        <div style="display:flex;gap:8px;">
+          <input type="text" id="saveDir" style="flex:1;" />
+          <button class="btn btn-neutral" id="browseDir" style="white-space:nowrap;">BROWSE</button>
+        </div>
+        <div class="hint">Where ClipFury saves your clips</div>
+      </div>
+
+      <div class="field">
+        <label class="label">RECORDING QUALITY</label>
+        <select id="quality">
+          <option value="1080p">1080p (recommended)</option>
+          <option value="720p">720p (smaller files)</option>
+        </select>
+      </div>
+
+      <div class="section-head" style="margin-top:16px;"><span>DETECTION</span></div>
+
+      <div class="toggle-row" id="toggle-autoUpload">
+        <div class="toggle-box" id="box-autoUpload"></div>
+        <div>
+          <div class="toggle-label">AUTO-UPLOAD TO SNAPFURY</div>
+          <div class="hint">Automatically upload every clip after detection</div>
+        </div>
+      </div>
+
+      <div class="toggle-row" id="toggle-launchOnStartup">
+        <div class="toggle-box" id="box-launchOnStartup"></div>
+        <div>
+          <div class="toggle-label">LAUNCH ON WINDOWS STARTUP</div>
+          <div class="hint">Start ClipFury automatically when Windows boots</div>
+        </div>
+      </div>
+
+      <div style="margin-top:12px;">
+        <button class="btn btn-neutral" id="testDetection">TEST SNAP DETECTION</button>
+        <div class="hint" style="margin-top:6px;">Simulates a snap detection — check that a clip saves correctly</div>
+      </div>
+    </div>
+
+    <!-- OBS TAB -->
+    <div class="panel" id="tab-obs">
+      <div class="toggle-row" id="toggle-obsEnabled">
+        <div class="toggle-box" id="box-obsEnabled"></div>
+        <div>
+          <div class="toggle-label">USE OBS FOR RECORDING</div>
+          <div class="hint">Recommended for best quality. OBS must be open with Replay Buffer enabled.</div>
+        </div>
+      </div>
+
+      <div id="obs-fields">
+        <div class="field">
+          <label class="label">OBS HOST</label>
+          <input type="text" id="obsHost" placeholder="localhost" />
+        </div>
+        <div class="field">
+          <label class="label">OBS PORT</label>
+          <input type="number" id="obsPort" placeholder="4455" />
+        </div>
+        <div class="field">
+          <label class="label">OBS PASSWORD</label>
+          <input type="password" id="obsPassword" placeholder="Leave blank if none" />
+        </div>
+        <button class="btn btn-primary" id="connectOBS">CONNECT TO OBS</button>
+        <div id="obs-status" style="margin-top:10px;"></div>
+      </div>
+
+      <div style="margin-top:16px;border-top:2px dashed #ccc;padding-top:14px;">
+        <div class="hint" style="font-size:0.8rem;line-height:1.7;">
+          <strong>How to set up OBS Replay Buffer:</strong><br>
+          1. Open OBS → Tools → WebSocket Server Settings → Enable<br>
+          2. Set your password above (or leave blank)<br>
+          3. In OBS → Output → Replay Buffer → Enable, set duration to match clip length above<br>
+          4. Click Connect above
+        </div>
+      </div>
+    </div>
+
+    <!-- SNAPFURY TAB -->
+    <div class="panel" id="tab-snapfury">
+      <div id="sf-logged-out">
+        <div class="section-head"><span>CONNECT YOUR ACCOUNT</span></div>
+        <div class="field">
+          <label class="label">EMAIL</label>
+          <input type="text" id="sfEmail" placeholder="your@email.com" />
+        </div>
+        <div class="field">
+          <label class="label">PASSWORD</label>
+          <input type="password" id="sfPassword" placeholder="Your SnapFury password" />
+        </div>
+        <button class="btn btn-gold" id="sfLogin">CONNECT TO SNAPFURY</button>
+        <div id="sf-error" style="color:#8B2035;font-size:0.8rem;margin-top:8px;"></div>
+        <div class="hint" style="margin-top:8px;">
+          Don't have an account? <a href="https://snapfury.com/signup" style="color:#4A3DC8;">Sign up at snapfury.com</a>
+        </div>
+      </div>
+
+      <div id="sf-logged-in" style="display:none;">
+        <div class="status" style="margin-bottom:14px;">
+          <div class="status-dot green"></div>
+          Connected as <strong id="sf-username"></strong>
+        </div>
+        <button class="btn btn-neutral" id="sfLogout">DISCONNECT</button>
+      </div>
+    </div>
+
+    <!-- UPLOAD TAB -->
+    <div class="panel" id="tab-upload">
+      <div class="section-head"><span>UPLOAD LAST CLIP</span></div>
+      <div id="upload-no-clip" class="hint">No clips saved yet. Play Marvel Snap and snap to capture your first clip.</div>
+      <div id="upload-has-clip" style="display:none;">
+        <div class="clip-info">
+          <div class="label" style="margin-bottom:4px;">LAST CLIP</div>
+          <div id="upload-clip-name" style="font-size:0.9rem;"></div>
+          <div id="upload-clip-size" class="hint"></div>
+        </div>
+        <div class="field">
+          <label class="label">CLIP TITLE</label>
+          <input type="text" id="upload-title" placeholder="My Snap" />
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <button class="btn btn-gold" id="uploadBtn">UPLOAD TO SNAPFURY</button>
+          <button class="btn btn-neutral" id="openClipFolder">OPEN FOLDER</button>
+        </div>
+        <div id="upload-status" style="margin-top:10px;font-size:0.85rem;"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <span class="version">ClipFury v0.1.0</span>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-primary" id="saveBtn">SAVE SETTINGS</button>
+      <button class="btn btn-neutral" id="closeBtn">CLOSE</button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const { ipcRenderer, shell } = require("electron");
+    const path = require("path");
+    const fs   = require("fs");
+
+    let settings = {};
+    let lastClip = null;
+
+    function showToast(msg) {
+      const t = document.getElementById("toast");
+      t.textContent = msg;
+      t.classList.remove("show");
+      void t.offsetWidth;
+      t.classList.add("show");
+      setTimeout(() => t.classList.remove("show"), 2600);
+    }
+
+    // Tab switching
+    document.querySelectorAll(".tab").forEach(tab => {
+      tab.addEventListener("click", () => {
+        document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+        document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
+        tab.classList.add("active");
+        document.getElementById("tab-" + tab.dataset.tab).classList.add("active");
+        if (tab.dataset.tab === "upload") loadUploadTab();
+      });
+    });
+
+    // Handle navigate-tab from main process
+    ipcRenderer.on("navigate-tab", (_, tab) => {
+      const el = document.querySelector(`[data-tab="${tab}"]`);
+      if (el) el.click();
+    });
+
+    // Toggle helpers
+    function setupToggle(id, key) {
+      const row = document.getElementById("toggle-" + id);
+      const box = document.getElementById("box-" + id);
+      row.addEventListener("click", () => {
+        settings[key] = !settings[key];
+        box.textContent = settings[key] ? "✓" : "";
+        box.classList.toggle("on", settings[key]);
+      });
+    }
+
+    function setToggle(id, val) {
+      const box = document.getElementById("box-" + id);
+      if (box) {
+        box.textContent = val ? "✓" : "";
+        box.classList.toggle("on", val);
+      }
+    }
+
+    // Load settings
+    async function loadSettings() {
+      settings = await ipcRenderer.invoke("get-settings");
+
+      document.getElementById("clipLength").value   = settings.clipLength  || 90;
+      document.getElementById("saveDir").value      = settings.saveDir     || "";
+      document.getElementById("quality").value      = settings.quality     || "1080p";
+      document.getElementById("obsHost").value      = settings.obsHost     || "localhost";
+      document.getElementById("obsPort").value      = settings.obsPort     || 4455;
+      document.getElementById("obsPassword").value  = settings.obsPassword || "";
+
+      setToggle("autoUpload",      settings.autoUpload);
+      setToggle("launchOnStartup", settings.launchOnStartup);
+      setToggle("obsEnabled",      settings.obsEnabled);
+
+      setupToggle("autoUpload",      "autoUpload");
+      setupToggle("launchOnStartup", "launchOnStartup");
+      setupToggle("obsEnabled",      "obsEnabled");
+
+      // SnapFury login state
+      if (settings.snapfuryToken && settings.snapfuryUsername) {
+        document.getElementById("sf-logged-out").style.display = "none";
+        document.getElementById("sf-logged-in").style.display  = "block";
+        document.getElementById("sf-username").textContent = settings.snapfuryUsername;
+      }
+    }
+
+    // Save settings
+    document.getElementById("saveBtn").addEventListener("click", async () => {
+      settings.clipLength      = parseInt(document.getElementById("clipLength").value);
+      settings.saveDir         = document.getElementById("saveDir").value;
+      settings.quality         = document.getElementById("quality").value;
+      settings.obsHost         = document.getElementById("obsHost").value;
+      settings.obsPort         = parseInt(document.getElementById("obsPort").value);
+      settings.obsPassword     = document.getElementById("obsPassword").value;
+
+      await ipcRenderer.invoke("save-settings", settings);
+      showToast("Settings saved!");
+    });
+
+    // OBS connect
+    document.getElementById("connectOBS").addEventListener("click", async () => {
+      settings.obsHost     = document.getElementById("obsHost").value;
+      settings.obsPort     = parseInt(document.getElementById("obsPort").value);
+      settings.obsPassword = document.getElementById("obsPassword").value;
+      await ipcRenderer.invoke("save-settings", settings);
+
+      const statusEl = document.getElementById("obs-status");
+      statusEl.innerHTML = '<span style="color:#C8952A">Connecting...</span>';
+      try {
+        await ipcRenderer.invoke("connect-obs");
+        statusEl.innerHTML = '<span style="color:#2a6e2a">Connected to OBS!</span>';
+      } catch (err) {
+        statusEl.innerHTML = `<span style="color:#8B2035">${err.message}</span>`;
+      }
+    });
+
+    // SnapFury login
+    document.getElementById("sfLogin").addEventListener("click", async () => {
+      const email    = document.getElementById("sfEmail").value;
+      const password = document.getElementById("sfPassword").value;
+      const errEl    = document.getElementById("sf-error");
+      errEl.textContent = "";
+
+      if (!email || !password) { errEl.textContent = "Please fill in both fields."; return; }
+
+      try {
+        const res = await fetch("https://snapfury.com/api/auth/signin/credentials", {
+          method:  "POST",
+          headers: { "Content-Type": "application/json" },
+          body:    JSON.stringify({ email, password }),
+        });
+        const data = await res.json();
+        if (!res.ok || data.error) { errEl.textContent = "Invalid email or password."; return; }
+
+        settings.snapfuryToken    = data.token;
+        settings.snapfuryUsername = data.username;
+        await ipcRenderer.invoke("save-settings", settings);
+
+        document.getElementById("sf-logged-out").style.display = "none";
+        document.getElementById("sf-logged-in").style.display  = "block";
+        document.getElementById("sf-username").textContent = data.username;
+        showToast("Connected to SnapFury!");
+      } catch {
+        errEl.textContent = "Connection failed. Check your internet connection.";
+      }
+    });
+
+    // SnapFury logout
+    document.getElementById("sfLogout").addEventListener("click", async () => {
+      settings.snapfuryToken    = null;
+      settings.snapfuryUsername = null;
+      await ipcRenderer.invoke("save-settings", settings);
+      document.getElementById("sf-logged-out").style.display = "block";
+      document.getElementById("sf-logged-in").style.display  = "none";
+    });
+
+    // Test detection
+    document.getElementById("testDetection").addEventListener("click", async () => {
+      await ipcRenderer.invoke("test-detection");
+      showToast("Test snap triggered — check your clips folder!");
+    });
+
+    // Browse save dir
+    document.getElementById("browseDir").addEventListener("click", () => {
+      ipcRenderer.invoke("open-clips-dir");
+    });
+
+    // Upload tab
+    async function loadUploadTab() {
+      lastClip = await ipcRenderer.invoke("get-last-clip");
+      const noClip  = document.getElementById("upload-no-clip");
+      const hasClip = document.getElementById("upload-has-clip");
+
+      if (lastClip && fs.existsSync(lastClip)) {
+        const stat = fs.statSync(lastClip);
+        const sizeMB = (stat.size / 1e6).toFixed(1);
+        document.getElementById("upload-clip-name").textContent = path.basename(lastClip);
+        document.getElementById("upload-clip-size").textContent = `${sizeMB} MB`;
+        document.getElementById("upload-title").value = `Snap — ${new Date().toLocaleDateString()}`;
+        noClip.style.display  = "none";
+        hasClip.style.display = "block";
+      } else {
+        noClip.style.display  = "block";
+        hasClip.style.display = "none";
+      }
+    }
+
+    document.getElementById("uploadBtn").addEventListener("click", async () => {
+      const statusEl = document.getElementById("upload-status");
+      statusEl.style.color = "#C8952A";
+      statusEl.textContent = "Uploading...";
+      try {
+        await ipcRenderer.invoke("upload-snapfury", lastClip);
+        statusEl.style.color = "#2a6e2a";
+        statusEl.textContent = "Uploaded to SnapFury!";
+      } catch (err) {
+        statusEl.style.color = "#8B2035";
+        statusEl.textContent = err.message;
+      }
+    });
+
+    document.getElementById("openClipFolder").addEventListener("click", () => {
+      ipcRenderer.invoke("open-clips-dir");
+    });
+
+    document.getElementById("closeBtn").addEventListener("click", () => window.close());
+
+    // Init
+    loadSettings();
+  </script>
+</body>
+</html>
