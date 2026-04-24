@@ -23,6 +23,7 @@ const store = new Store({
     snapButtonX:    null,
     snapButtonY:    null,
     monitorRes:     '2560x1440',
+    firstRun:       true,
   }
 });
 
@@ -52,6 +53,10 @@ async function onSnapDetected(phrase, testMode = false) {
   notify("ClipFury", testMode ? "Test snap — saving clip..." : "Snap detected — saving clip...");
 
   try {
+    // Small delay so the Windows notification doesn't steal window focus
+    // from Marvel Snap before FFmpeg starts capturing
+    if (!testMode) await new Promise(r => setTimeout(r, 1500));
+
     const clipPath = testMode
       ? await saveTestClip(store.get("saveDir"))
       : await saveReplayBuffer(store);
@@ -332,7 +337,17 @@ app.whenReady().then(async () => {
 
   rebuildTray();
 
-  notify("ClipFury", "Running in the system tray — ready to catch your snaps.");
+  // First run — open settings so user knows what to do
+  const isFirstRun = store.get("firstRun");
+  if (isFirstRun) {
+    store.set("firstRun", false);
+    setTimeout(() => {
+      openSettingsWindow("general");
+      notify("ClipFury", "Welcome to ClipFury! Set up your Snap button in Settings.");
+    }, 1500);
+  } else {
+    notify("ClipFury", "Running in the system tray — ready to catch your snaps.");
+  }
 });
 
 app.on("window-all-closed", (e) => {

@@ -1,9 +1,12 @@
 {
   "name": "clipfury",
-  "version": "0.1.0",
+  "version": "0.1.0-beta",
   "description": "Automatic Marvel Snap clip capture \u2014 never miss a snap",
   "main": "src/main/index.js",
-  "author": "SnapFury",
+  "author": {
+    "name": "SnapFury",
+    "url": "https://snapfury.com"
+  },
   "license": "MIT",
   "scripts": {
     "start": "electron .",
@@ -41,21 +44,28 @@
       "installerHeaderIcon": "assets/icon.ico",
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "ClipFury"
+      "shortcutName": "ClipFury",
+      "installerHeader": "assets/installer-banner.bmp",
+      "installerSidebar": "assets/installer-wizard.bmp",
+      "license": "LICENSE.txt",
+      "artifactName": "ClipFury-Setup-${version}.exe"
     },
-    "extraResources": [
-      {
-        "from": "models/",
-        "to": "models/",
-        "filter": [
-          "**/*"
-        ]
-      }
-    ],
+    "extraResources": [],
     "files": [
       "src/**/*",
       "assets/**/*",
-      "node_modules/**/*"
-    ]
+      "!assets/*.bmp",
+      "node_modules/**/*",
+      "!node_modules/**/test/**",
+      "!node_modules/**/*.map",
+      "!**/*.md"
+    ],
+    "copyright": "Copyright 2025 SnapFury",
+    "publish": {
+      "provider": "github",
+      "owner": "YOUR_GITHUB_USERNAME",
+      "repo": "clipfury",
+      "private": false
+    }
   }
 }
