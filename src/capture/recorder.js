@@ -1,120 +1,189 @@
 const path   = require("path");
 const fs     = require("fs");
-const { execFile } = require("child_process");
-const ffmpeg = require("ffmpeg-static");
-const { saveOBSReplay, getOBSStatus } = require("./obs");
+const { execFile, execFileSync } = require("child_process");
 
-// Built-in recorder state
-let builtinProcess   = null;
+// ffmpeg-static gives us the path to a bundled ffmpeg binary
+let ffmpegPath;
+try {
+  ffmpegPath = require("ffmpeg-static");
+} catch {
+  ffmpegPath = "ffmpeg"; // Fall back to system ffmpeg
+}
+
+let builtinProcess    = null;
 let builtinOutputPath = null;
-let recordingStart   = null;
 
-// Main entry point — decides whether to use OBS or built-in recorder
-async function saveReplayBuffer(store) {
+/**
+ * Main entry point — saves a clip using OBS replay buffer or built-in recorder.
+ * In test mode, generates a short solid-color clip to verify the pipeline.
+ */
+async function saveReplayBuffer(store, testMode = false) {
   const clipLength = store.get("clipLength") || 90;
   const saveDir    = store.get("saveDir");
   const obsEnabled = store.get("obsEnabled");
 
   ensureDir(saveDir);
 
-  if (obsEnabled && getOBSStatus() === "connected") {
-    // OBS path — cleanest quality, uses whatever OBS is configured to record
-    console.log("Saving via OBS replay buffer...");
-    const obsPath = await saveOBSReplay(store);
+  // In test mode generate a quick 3-second clip to verify saving works
+  if (testMode) {
+    return await saveTestClip(saveDir);
+  }
 
-    // Copy the file to our save directory with a ClipFury filename
+  const { saveOBSReplay, getOBSStatus } = require("./obs");
+  if (obsEnabled && getOBSStatus() === "connected") {
+    console.log("Saving via OBS replay buffer...");
+    const obsPath  = await saveOBSReplay(store);
     const destPath = path.join(saveDir, generateFilename());
     fs.copyFileSync(obsPath, destPath);
     return destPath;
   } else {
-    // Built-in path — uses FFmpeg to capture screen + audio
     console.log("Saving via built-in recorder...");
     return await saveBuiltinClip(saveDir, clipLength);
   }
 }
 
-// Captures the screen using FFmpeg's gdigrab (Windows screen capture)
-// Records for the configured clip length and saves to disk
-async function saveBuiltinClip(saveDir, clipLength) {
+/**
+ * Generates a short test clip (3 seconds, solid color) to verify
+ * that the save pipeline and file system are working correctly.
+ * Does not require Marvel Snap to be open.
+ */
+async function saveTestClip(saveDir) {
   return new Promise((resolve, reject) => {
-    const outputPath = path.join(saveDir, generateFilename());
+    const outputPath = path.join(saveDir, generateFilename("TEST"));
 
-    // gdigrab captures the desktop on Windows
-    // -t sets the recording duration
-    // We capture a window named "Marvel Snap" specifically if it exists,
-    // falling back to the full desktop
+    // Generate a 3-second solid purple clip — no screen capture needed
     const args = [
       "-y",
-      "-f",       "gdigrab",
-      "-framerate","30",
-      "-i",       "title=Marvel Snap",   // Targets Marvel Snap window by title
-      "-f",       "dshow",               // DirectShow for audio capture
-      "-i",       "audio=virtual-audio-capturer", // Virtual audio — see setup notes
-      "-t",       String(clipLength),
-      "-c:v",     "libx264",
-      "-preset",  "ultrafast",
-      "-crf",     "23",                  // Good quality without huge file size
-      "-c:a",     "aac",
-      "-b:a",     "128k",
+      "-f",      "lavfi",
+      "-i",      "color=c=0x4A3DC8:size=1280x720:rate=30",
+      "-f",      "lavfi",
+      "-i",      "anullsrc=r=44100:cl=stereo",
+      "-t",      "3",
+      "-c:v",    "libx264",
+      "-preset", "ultrafast",
+      "-crf",    "28",
+      "-c:a",    "aac",
+      "-b:a",    "64k",
+      "-shortest",
       outputPath,
     ];
 
-    const proc = execFile(ffmpeg, args, { timeout: (clipLength + 30) * 1000 }, (err) => {
-      if (err && err.killed) {
-        reject(new Error("Recording timed out"));
-      } else {
-        resolve(outputPath);
-      }
-    });
+    console.log("Generating test clip:", outputPath);
 
-    proc.stderr.on("data", (data) => {
-      // FFmpeg writes progress to stderr — log it at debug level only
-      if (process.env.NODE_ENV === "development") {
-        process.stdout.write(".");
+    execFile(ffmpegPath, args, { timeout: 15000 }, (err, stdout, stderr) => {
+      if (err) {
+        console.error("Test clip error:", err.message);
+        reject(new Error("Failed to generate test clip: " + err.message));
+        return;
       }
+      if (!fs.existsSync(outputPath)) {
+        reject(new Error("Test clip file was not created"));
+        return;
+      }
+      console.log("Test clip saved:", outputPath);
+      resolve(outputPath);
     });
   });
 }
 
-// Starts a continuous recording session (for future use)
+/**
+ * Captures the screen using FFmpeg gdigrab.
+ * Tries to capture the Marvel Snap window first,
+ * falls back to full desktop if the game isn't open.
+ */
+async function saveBuiltinClip(saveDir, clipLength) {
+  // Check if Marvel Snap window exists
+  const targetWindow = getWindowTitle();
+  console.log("Capturing window:", targetWindow);
+
+  return new Promise((resolve, reject) => {
+    const outputPath = path.join(saveDir, generateFilename());
+
+    const args = [
+      "-y",
+      "-f",        "gdigrab",
+      "-framerate", "30",
+      "-i",         targetWindow,
+      "-t",         String(clipLength),
+      "-c:v",       "libx264",
+      "-preset",    "ultrafast",
+      "-crf",       "23",
+      "-pix_fmt",   "yuv420p",
+      "-c:a",       "aac",
+      "-b:a",       "128k",
+      outputPath,
+    ];
+
+    const proc = execFile(ffmpegPath, args, { timeout: (clipLength + 30) * 1000 }, (err) => {
+      if (err && err.code === "ETIMEDOUT") {
+        reject(new Error("Recording timed out"));
+        return;
+      }
+      if (!fs.existsSync(outputPath)) {
+        reject(new Error("Clip file was not created — check FFmpeg logs"));
+        return;
+      }
+      resolve(outputPath);
+    });
+
+    proc.on("error", reject);
+  });
+}
+
+/**
+ * Checks if Marvel Snap is running and returns the appropriate
+ * gdigrab input string — window title if found, desktop otherwise.
+ */
+function getWindowTitle() {
+  try {
+    // Use PowerShell to check for the Marvel Snap window
+    const result = execFileSync("powershell", [
+      "-Command",
+      "Get-Process | Where-Object {$_.MainWindowTitle -like '*Marvel Snap*'} | Select-Object -First 1 -ExpandProperty MainWindowTitle"
+    ], { timeout: 3000, encoding: "utf8" }).trim();
+
+    if (result && result.length > 0) {
+      return `title=${result}`;
+    }
+  } catch {
+    // PowerShell not available or timed out — use desktop
+  }
+  return "desktop"; // Capture full screen as fallback
+}
+
 async function startBuiltinRecorder(saveDir) {
   if (builtinProcess) return;
   ensureDir(saveDir);
   builtinOutputPath = path.join(saveDir, generateFilename());
-  recordingStart    = Date.now();
 
   const args = [
-    "-y",
-    "-f",       "gdigrab",
-    "-framerate","30",
-    "-i",       "title=Marvel Snap",
-    "-c:v",     "libx264",
-    "-preset",  "ultrafast",
-    "-crf",     "23",
+    "-y", "-f", "gdigrab", "-framerate", "30",
+    "-i", getWindowTitle(),
+    "-c:v", "libx264", "-preset", "ultrafast", "-crf", "23", "-pix_fmt", "yuv420p",
     builtinOutputPath,
   ];
 
-  builtinProcess = execFile(ffmpeg, args);
+  builtinProcess = execFile(ffmpegPath, args);
   console.log("Built-in recorder started:", builtinOutputPath);
 }
 
 async function stopBuiltinRecorder() {
   if (!builtinProcess) return null;
-  builtinProcess.kill("SIGINT"); // Graceful stop — FFmpeg finalizes the file
+  builtinProcess.kill("SIGINT");
   builtinProcess = null;
   const result = builtinOutputPath;
   builtinOutputPath = null;
   return result;
 }
 
-function generateFilename() {
-  const now = new Date();
+function generateFilename(prefix = "ClipFury") {
+  const now   = new Date();
   const stamp = now.toISOString().replace(/[:.]/g, "-").replace("T", "_").slice(0, 19);
-  return `ClipFury_${stamp}.mp4`;
+  return `${prefix}_${stamp}.mp4`;
 }
 
 function ensureDir(dir) {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 }
 
-module.exports = { saveReplayBuffer, startBuiltinRecorder, stopBuiltinRecorder };
+module.exports = { saveReplayBuffer, startBuiltinRecorder, stopBuiltinRecorder, saveTestClip };

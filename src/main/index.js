@@ -2,9 +2,9 @@ const { app, Tray, Menu, BrowserWindow, ipcMain, shell, Notification, nativeImag
 const path   = require("path");
 const fs     = require("fs");
 const Store  = require("electron-store");
-const { startAudioMonitor, stopAudioMonitor }   = require("../audio/monitor");
+const { startAudioMonitor, stopAudioMonitor, triggerTestSnap } = require("../audio/monitor");
 const { connectOBS, disconnectOBS, getOBSStatus } = require("../capture/obs");
-const { saveReplayBuffer, startBuiltinRecorder, stopBuiltinRecorder } = require("../capture/recorder");
+const { saveReplayBuffer, startBuiltinRecorder, stopBuiltinRecorder, saveTestClip } = require("../capture/recorder");
 const { uploadToSnapFury } = require("../upload/snapfury");
 
 const store = new Store({
@@ -43,31 +43,36 @@ function notify(title, body) {
 }
 
 // Called by the audio monitor when a snap phrase is detected
-async function onSnapDetected(phrase) {
-  console.log(`Snap detected: "${phrase}"`);
-  notify("ClipFury", `Snap detected — saving clip...`);
+async function onSnapDetected(phrase, testMode = false) {
+  console.log(`Snap detected: "${phrase}"${testMode ? " (test)" : ""}`);
+  notify("ClipFury", testMode ? "Test snap — saving clip..." : "Snap detected — saving clip...");
 
   try {
-    const clipPath = await saveReplayBuffer(store);
+    const clipPath = testMode
+      ? await saveTestClip(store.get("saveDir"))
+      : await saveReplayBuffer(store);
+
     if (clipPath) {
       lastClipPath = clipPath;
-      notify("ClipFury", "Clip saved! Right-click the tray to upload.");
+      rebuildTray(); // Rebuild NOW so upload option becomes available
+      notify("ClipFury", testMode
+        ? "Test clip saved! Right-click → Upload Last Clip to test upload."
+        : "Clip saved! Right-click the tray to upload."
+      );
 
-      // Auto-upload to SnapFury if enabled
-      if (store.get("autoUpload") && store.get("snapfuryToken")) {
+      if (store.get("autoUpload") && store.get("snapfuryToken") && !testMode) {
         notify("ClipFury", "Uploading to SnapFury...");
         await uploadToSnapFury(clipPath, store);
         notify("ClipFury", "Uploaded to SnapFury!");
       }
 
-      // Refresh clips window if it's open
       if (clipsWin && !clipsWin.isDestroyed()) {
         clipsWin.webContents.send("clips-updated");
       }
     }
   } catch (err) {
     console.error("Failed to save clip:", err);
-    notify("ClipFury", "Failed to save clip. Check your settings.");
+    notify("ClipFury", "Failed to save clip: " + err.message);
   }
 }
 
@@ -123,6 +128,10 @@ function buildTrayMenu() {
       label:   "Upload Last Clip to SnapFury",
       enabled: hasLastClip,
       click:   () => showUploadDialog(lastClipPath),
+    },
+    {
+      label: "Test Snap Detection (Quick)",
+      click: () => onSnapDetected("TEST", true),
     },
     {
       label: "Open Clips Folder",
@@ -234,7 +243,7 @@ ipcMain.handle("open-clips-dir",  ()          => shell.openPath(store.get("saveD
 ipcMain.handle("delete-clip",     (_, p)      => { try { fs.unlinkSync(p); return true; } catch { return false; } });
 ipcMain.handle("upload-snapfury", (_, p)      => uploadToSnapFury(p, store));
 ipcMain.handle("connect-obs",     ()          => connectOBS(store));
-ipcMain.handle("test-detection",  ()          => onSnapDetected("TEST"));
+ipcMain.handle("test-detection", () => onSnapDetected("TEST", true));
 
 // Returns list of clips in the save directory
 function getClipsList() {
@@ -278,15 +287,9 @@ app.whenReady().then(async () => {
     }
   }
 
-  // Start audio monitoring
-  try {
-    await startAudioMonitor(onSnapDetected);
-    isMonitoring = true;
-    console.log("Audio monitoring started");
-  } catch (err) {
-    console.error("Audio monitor failed to start:", err);
-    isMonitoring = false;
-  }
+  // Start audio monitoring (uses Electron's built-in Web Speech API)
+  await startAudioMonitor(onSnapDetected);
+  isMonitoring = true;
 
   rebuildTray();
 

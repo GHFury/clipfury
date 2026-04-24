@@ -1,7 +1,7 @@
 {
   "name": "clipfury",
   "version": "0.1.0",
-  "description": "Automatic Marvel Snap clip capture — never miss a snap",
+  "description": "Automatic Marvel Snap clip capture \u2014 never miss a snap",
   "main": "src/main/index.js",
   "author": "SnapFury",
   "license": "MIT",
@@ -14,9 +14,7 @@
   "dependencies": {
     "electron-store": "^8.2.0",
     "ffmpeg-static": "^5.2.0",
-    "node-record-lpcm16": "^1.0.1",
-    "obs-websocket-js": "^5.0.5",
-    "vosk": "^0.3.39"
+    "obs-websocket-js": "^5.0.5"
   },
   "devDependencies": {
     "cross-env": "^7.0.3",

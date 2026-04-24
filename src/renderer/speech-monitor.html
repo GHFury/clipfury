@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>ClipFury Speech Monitor</title>
+</head>
+<body>
+<script>
+  const { ipcRenderer } = require("electron");
+
+  // Phrases that indicate a snap happened in Marvel Snap
+  const SNAP_PHRASES = ["snap", "oh snap", "opponent snapped", "i snap"];
+  const COOLDOWN_MS  = 8000;
+
+  let recognition     = null;
+  let lastDetectedAt  = 0;
+  let isRunning       = false;
+
+  function checkForSnap(text) {
+    if (!text) return;
+    const lower = text.toLowerCase().trim();
+    const now   = Date.now();
+
+    if (now - lastDetectedAt < COOLDOWN_MS) return;
+
+    for (const phrase of SNAP_PHRASES) {
+      if (lower.includes(phrase)) {
+        lastDetectedAt = now;
+        console.log(`Snap detected: "${phrase}" in "${lower}"`);
+        ipcRenderer.send("snap-detected", phrase);
+        break;
+      }
+    }
+  }
+
+  function startRecognition() {
+    if (!("webkitSpeechRecognition" in window) && !("SpeechRecognition" in window)) {
+      ipcRenderer.send("speech-error", "Web Speech API not available in this Electron version.");
+      return;
+    }
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    recognition = new SpeechRecognition();
+
+    recognition.continuous    = true;   // Keep listening forever
+    recognition.interimResults = true;  // Check partial results for faster response
+    recognition.lang           = "en-US";
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = () => {
+      isRunning = true;
+      ipcRenderer.send("speech-started");
+      console.log("Speech recognition started");
+    };
+
+    recognition.onresult = (event) => {
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript;
+        checkForSnap(transcript);
+      }
+    };
+
+    recognition.onerror = (event) => {
+      // network error just means no internet — we don't need it, ignore it
+      if (event.error === "network") return;
+      // aborted means we stopped it intentionally
+      if (event.error === "aborted") return;
+      console.error("Speech recognition error:", event.error);
+      ipcRenderer.send("speech-error", event.error);
+    };
+
+    recognition.onend = () => {
+      // Auto-restart if we're supposed to be running
+      // Web Speech API stops after silence — this keeps it going
+      if (isRunning) {
+        setTimeout(() => {
+          try { recognition.start(); } catch {}
+        }, 500);
+      }
+    };
+
+    try {
+      recognition.start();
+    } catch (err) {
+      ipcRenderer.send("speech-error", err.message);
+    }
+  }
+
+  function stopRecognition() {
+    isRunning = false;
+    if (recognition) {
+      try { recognition.stop(); } catch {}
+      recognition = null;
+    }
+    ipcRenderer.send("speech-stopped");
+  }
+
+  // Listen for commands from the main process
+  ipcRenderer.on("start-listening",  () => startRecognition());
+  ipcRenderer.on("stop-listening",   () => stopRecognition());
+  ipcRenderer.on("test-snap",        () => {
+    lastDetectedAt = 0; // Reset cooldown for test
+    checkForSnap("oh snap");
+  });
+
+  // Auto-start when the window loads
+  startRecognition();
+</script>
+</body>
+</html>

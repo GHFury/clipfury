@@ -337,6 +337,11 @@
       <div id="sf-logged-out">
         <div class="section-head"><span>CONNECT YOUR ACCOUNT</span></div>
         <div class="field">
+          <label class="label">SERVER URL</label>
+          <input type="text" id="sfServer" placeholder="https://snapfury.com" />
+          <div class="hint">Use http://localhost:3000 while running locally</div>
+        </div>
+        <div class="field">
           <label class="label">EMAIL</label>
           <input type="text" id="sfEmail" placeholder="your@email.com" />
         </div>
@@ -458,6 +463,7 @@
       document.getElementById("obsHost").value      = settings.obsHost     || "localhost";
       document.getElementById("obsPort").value      = settings.obsPort     || 4455;
       document.getElementById("obsPassword").value  = settings.obsPassword || "";
+      document.getElementById("sfServer").value     = settings.snapfuryServer  || "http://localhost:3000";
 
       setToggle("autoUpload",      settings.autoUpload);
       setToggle("launchOnStartup", settings.launchOnStartup);
@@ -507,6 +513,7 @@
 
     // SnapFury login
     document.getElementById("sfLogin").addEventListener("click", async () => {
+      const server   = (document.getElementById("sfServer").value || "https://snapfury.com").replace(/\/$/, "");
       const email    = document.getElementById("sfEmail").value;
       const password = document.getElementById("sfPassword").value;
       const errEl    = document.getElementById("sf-error");
@@ -515,24 +522,29 @@
       if (!email || !password) { errEl.textContent = "Please fill in both fields."; return; }
 
       try {
-        const res = await fetch("https://snapfury.com/api/auth/signin/credentials", {
+        errEl.textContent = "";
+        const res = await fetch(`${server}/api/auth/app-token`, {
           method:  "POST",
           headers: { "Content-Type": "application/json" },
           body:    JSON.stringify({ email, password }),
         });
         const data = await res.json();
-        if (!res.ok || data.error) { errEl.textContent = "Invalid email or password."; return; }
+        if (!res.ok || data.error) {
+          errEl.textContent = data.error || "Invalid email or password.";
+          return;
+        }
 
         settings.snapfuryToken    = data.token;
         settings.snapfuryUsername = data.username;
+        settings.snapfuryServer   = server;
         await ipcRenderer.invoke("save-settings", settings);
 
         document.getElementById("sf-logged-out").style.display = "none";
         document.getElementById("sf-logged-in").style.display  = "block";
         document.getElementById("sf-username").textContent = data.username;
         showToast("Connected to SnapFury!");
-      } catch {
-        errEl.textContent = "Connection failed. Check your internet connection.";
+      } catch (err) {
+        errEl.textContent = "Connection failed: " + err.message;
       }
     });
 

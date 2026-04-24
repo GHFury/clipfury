@@ -1,14 +1,15 @@
 const fs   = require("fs");
 const path = require("path");
-const http = require("https");
+// Use http or https depending on the server URL (http for localhost, https for production)
 const { execFile } = require("child_process");
 
-const SNAPFURY_BASE = "https://snapfury.com";
+// Base URL is read from store so it works with both local dev and production
 
 // Uploads a clip file to SnapFury — gets a presigned URL then PUTs the file
 async function uploadToSnapFury(clipPath, store) {
-  const token = store.get("snapfuryToken");
-  if (!token) throw new Error("Not logged in to SnapFury");
+  const token   = store.get("snapfuryToken");
+  const baseUrl = (store.get("snapfuryServer") || "https://snapfury.com").replace(/\/$/, "");
+  if (!token) throw new Error("Not logged in to SnapFury. Open Settings → SnapFury tab.");
   if (!fs.existsSync(clipPath)) throw new Error("Clip file not found");
 
   const filename    = path.basename(clipPath);
@@ -16,7 +17,7 @@ async function uploadToSnapFury(clipPath, store) {
   const contentType = "video/mp4";
 
   // Step 1 — get a presigned upload URL from SnapFury
-  const { url, publicUrl } = await apiRequest("POST", "/api/upload", token, {
+  const { url, publicUrl } = await apiRequest("POST", "/api/upload", token, baseUrl, {
     filename,
     contentType,
     size: fileSize,
@@ -28,7 +29,7 @@ async function uploadToSnapFury(clipPath, store) {
 
   // Step 3 — create the clip record
   const title = generateTitle(filename);
-  const clip  = await apiRequest("POST", "/api/clips", token, {
+  const clip  = await apiRequest("POST", "/api/clips", token, baseUrl, {
     title,
     videoUrl:   publicUrl,
     visibility: "public",
@@ -51,13 +52,15 @@ function generateTitle(filename) {
 }
 
 // Makes an authenticated JSON request to the SnapFury API
-function apiRequest(method, endpoint, token, body) {
+function apiRequest(method, endpoint, token, baseUrl, body) {
   return new Promise((resolve, reject) => {
     const payload = JSON.stringify(body);
-    const url     = new URL(SNAPFURY_BASE + endpoint);
+    const url     = new URL(baseUrl + endpoint);
+    const http    = require(url.protocol === "https:" ? "https" : "http");
 
     const options = {
       hostname: url.hostname,
+      port:     url.port || (url.protocol === "https:" ? 443 : 80),
       path:     url.pathname,
       method,
       headers: {
@@ -71,12 +74,14 @@ function apiRequest(method, endpoint, token, body) {
       let data = "";
       res.on("data",  (chunk) => { data += chunk; });
       res.on("end",   () => {
+        console.log(`[SnapFury API] ${method} ${endpoint} → ${res.statusCode}`);
+        console.log(`[SnapFury API] Response body:`, data.slice(0, 300));
         try {
           const parsed = JSON.parse(data);
-          if (res.statusCode >= 400) reject(new Error(parsed.error || `HTTP ${res.statusCode}`));
+          if (res.statusCode >= 400) reject(new Error(parsed.error || `HTTP ${res.statusCode}: ${data.slice(0, 200)}`));
           else resolve(parsed);
         } catch {
-          reject(new Error("Invalid response from SnapFury"));
+          reject(new Error(`Invalid response from SnapFury (${res.statusCode}): ${data.slice(0, 200)}`));
         }
       });
     });
@@ -90,12 +95,14 @@ function apiRequest(method, endpoint, token, body) {
 // Streams the file directly to the presigned storage URL
 function uploadFile(filePath, uploadUrl, contentType) {
   return new Promise((resolve, reject) => {
-    const fileSize = fs.statSync(filePath).size;
+    const fileSize   = fs.statSync(filePath).size;
     const fileStream = fs.createReadStream(filePath);
-    const url = new URL(uploadUrl);
+    const url        = new URL(uploadUrl);
+    const http       = require(url.protocol === "https:" ? "https" : "http");
 
     const options = {
       hostname: url.hostname,
+      port:     url.port || (url.protocol === "https:" ? 443 : 80),
       path:     url.pathname + url.search,
       method:   "PUT",
       headers: {
