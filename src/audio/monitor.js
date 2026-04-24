@@ -5,11 +5,8 @@ let speechWindow     = null;
 let onDetectCallback = null;
 let isRunning        = false;
 
-/**
- * Starts audio monitoring using Electron's built-in Web Speech API.
- * Creates a hidden background window that runs speech recognition
- * using Chromium's native engine — no native modules required.
- */
+// Keeps the speech monitor running as a silent fallback
+// Primary detection is now handled by the mouse click monitor
 async function startAudioMonitor(onDetect) {
   if (isRunning) return;
   onDetectCallback = onDetect;
@@ -33,25 +30,19 @@ async function startAudioMonitor(onDetect) {
     if (onDetectCallback) onDetectCallback(phrase);
   });
 
-  ipcMain.on("speech-started", () => {
+  ipcMain.once("speech-started", () => {
     isRunning = true;
-    console.log("Audio monitor active — listening for snap cues");
+    console.log("Audio monitor active (fallback)");
   });
 
-  ipcMain.on("speech-stopped", () => {
-    isRunning = false;
-  });
-
-  ipcMain.on("speech-error", (_, err) => {
-    console.error("Speech monitor error:", err);
-  });
+  ipcMain.on("speech-stopped", () => { isRunning = false; });
+  ipcMain.on("speech-error",   (_, err) => console.error("Speech error:", err));
 
   return true;
 }
 
 function stopAudioMonitor() {
   if (!isRunning && !speechWindow) return;
-
   if (speechWindow && !speechWindow.isDestroyed()) {
     speechWindow.webContents.send("stop-listening");
     setTimeout(() => {
@@ -61,9 +52,7 @@ function stopAudioMonitor() {
       }
     }, 1000);
   }
-
   isRunning = false;
-  console.log("Audio monitor stopped");
 }
 
 function getMonitorStatus() {
@@ -78,9 +67,4 @@ function triggerTestSnap() {
   }
 }
 
-module.exports = {
-  startAudioMonitor,
-  stopAudioMonitor,
-  getMonitorStatus,
-  triggerTestSnap,
-};
+module.exports = { startAudioMonitor, stopAudioMonitor, getMonitorStatus, triggerTestSnap };

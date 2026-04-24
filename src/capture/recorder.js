@@ -38,7 +38,7 @@ async function saveReplayBuffer(store, testMode = false) {
     return destPath;
   } else {
     console.log("Saving via built-in recorder...");
-    return await saveBuiltinClip(saveDir, clipLength);
+    return await saveBuiltinClip(saveDir, clipLength, store);
   }
 }
 
@@ -87,68 +87,107 @@ async function saveTestClip(saveDir) {
 }
 
 /**
- * Captures the screen using FFmpeg gdigrab.
- * Tries to capture the Marvel Snap window first,
- * falls back to full desktop if the game isn't open.
+ * Captures Marvel Snap using FFmpeg gdigrab.
+ * Targets the game window directly to avoid capturing all monitors.
+ * Falls back to primary monitor only if the window isn't found.
  */
-async function saveBuiltinClip(saveDir, clipLength) {
-  // Check if Marvel Snap window exists
-  const targetWindow = getWindowTitle();
-  console.log("Capturing window:", targetWindow);
+async function saveBuiltinClip(saveDir, clipLength, store) {
+  const monitorRes = store ? store.get("monitorRes") || "2560x1440" : "2560x1440";
+  const source     = getCaptureSource(monitorRes);
 
   return new Promise((resolve, reject) => {
     const outputPath = path.join(saveDir, generateFilename());
 
-    const args = [
-      "-y",
-      "-f",        "gdigrab",
-      "-framerate", "30",
-      "-i",         targetWindow,
-      "-t",         String(clipLength),
-      "-c:v",       "libx264",
-      "-preset",    "ultrafast",
-      "-crf",       "23",
-      "-pix_fmt",   "yuv420p",
-      "-c:a",       "aac",
-      "-b:a",       "128k",
-      outputPath,
-    ];
+    const args = ["-y", "-f", "gdigrab", "-framerate", "30"];
 
+    if (source.isWindow) {
+      // Window capture — pass title=SNAP as a single unquoted array element
+      // execFile does NOT use shell so no quoting needed — just the raw value
+      args.push("-i", source.input);  // source.input = "title=SNAP" (no shell quotes)
+    } else {
+      // Desktop fallback — limit to primary monitor dimensions
+      const [w, h] = source.size.split("x");
+      args.push(
+        "-offset_x",  "0",
+        "-offset_y",  "0",
+        "-video_size", `${w}x${h}`,
+        "-i",          "desktop"
+      );
+    }
+
+    args.push(
+      "-t",        String(clipLength),
+      "-c:v",      "libx264",
+      "-preset",   "fast",
+      "-crf",      "23",
+      "-pix_fmt",  "yuv420p",
+      "-vf",       "format=yuv420p",
+      "-movflags", "+faststart",
+      outputPath
+    );
+
+    console.log("FFmpeg command:", ffmpegPath);
+    console.log("FFmpeg args:", JSON.stringify(args));
+
+    let ffmpegStderr = "";
     const proc = execFile(ffmpegPath, args, { timeout: (clipLength + 30) * 1000 }, (err) => {
+      // Always log ffmpeg output for debugging
+      if (ffmpegStderr) {
+        const lines = ffmpegStderr.split("\n").filter(l => l.includes("error") || l.includes("Error") || l.includes("Failed") || l.includes("Cannot") || l.includes("Invalid"));
+        if (lines.length > 0) console.log("FFmpeg errors:", lines.join("\n"));
+      }
+
       if (err && err.code === "ETIMEDOUT") {
-        reject(new Error("Recording timed out"));
-        return;
+        reject(new Error("Recording timed out")); return;
+      }
+      if (err) {
+        console.error("FFmpeg exit error:", err.message);
+        console.error("Full stderr:", ffmpegStderr.slice(-500));
       }
       if (!fs.existsSync(outputPath)) {
-        reject(new Error("Clip file was not created — check FFmpeg logs"));
-        return;
+        reject(new Error(`FFmpeg failed to create file. Error: ${ffmpegStderr.slice(-300)}`)); return;
       }
+      const size = fs.statSync(outputPath).size;
+      if (size < 10000) {
+        try { fs.unlinkSync(outputPath); } catch {}
+        reject(new Error(`Empty clip (${size} bytes). FFmpeg error: ${ffmpegStderr.slice(-300)}`)); return;
+      }
+      console.log(`Clip saved: ${outputPath} (${(size/1e6).toFixed(1)}MB)`);
       resolve(outputPath);
     });
 
-    proc.on("error", reject);
+    proc.stderr.on("data", (data) => { ffmpegStderr += data; });
+    proc.on("error", (err) => reject(new Error("FFmpeg process error: " + err.message)));
   });
 }
 
 /**
- * Checks if Marvel Snap is running and returns the appropriate
- * gdigrab input string — window title if found, desktop otherwise.
+ * Returns the gdigrab capture source for Marvel Snap.
+ *
+ * Marvel Snap runs as process "SNAP" with window title "SNAP".
+ * We verify it's running before attempting capture and fall back
+ * to primary monitor desktop capture if not found.
  */
-function getWindowTitle() {
+function getCaptureSource(monitorRes) {
   try {
-    // Use PowerShell to check for the Marvel Snap window
+    // Check if SNAP process has a visible window
     const result = execFileSync("powershell", [
       "-Command",
-      "Get-Process | Where-Object {$_.MainWindowTitle -like '*Marvel Snap*'} | Select-Object -First 1 -ExpandProperty MainWindowTitle"
+      "Get-Process -Name SNAP -ErrorAction SilentlyContinue | Where-Object {$_.MainWindowTitle -ne ''} | Select-Object -First 1 -ExpandProperty MainWindowTitle"
     ], { timeout: 3000, encoding: "utf8" }).trim();
 
     if (result && result.length > 0) {
-      return `title=${result}`;
+      console.log(`Marvel Snap window found: "${result}"`);
+      return { input: `title=${result}`, isWindow: true };
     }
-  } catch {
-    // PowerShell not available or timed out — use desktop
+
+    console.log("Marvel Snap not running — falling back to desktop capture");
+  } catch (err) {
+    console.log("Window search error:", err.message);
   }
-  return "desktop"; // Capture full screen as fallback
+
+  // Fallback to primary monitor only
+  return { input: "desktop", isWindow: false, size: monitorRes };
 }
 
 async function startBuiltinRecorder(saveDir) {
@@ -156,9 +195,10 @@ async function startBuiltinRecorder(saveDir) {
   ensureDir(saveDir);
   builtinOutputPath = path.join(saveDir, generateFilename());
 
+  const { input } = getCaptureSource();
   const args = [
     "-y", "-f", "gdigrab", "-framerate", "30",
-    "-i", getWindowTitle(),
+    "-i", input,
     "-c:v", "libx264", "-preset", "ultrafast", "-crf", "23", "-pix_fmt", "yuv420p",
     builtinOutputPath,
   ];

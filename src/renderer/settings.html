@@ -241,6 +241,15 @@
 
     <!-- GENERAL TAB -->
     <div class="panel active" id="tab-general">
+      <!-- Setup notice -->
+      <div style="background:#4A3DC8;border:3px solid #111;padding:10px 14px;box-shadow:3px 3px 0 #111;margin-bottom:16px;">
+        <div style="font-family:'Anton',sans-serif;font-style:italic;color:#C8952A;font-size:0.9rem;letter-spacing:1px;margin-bottom:4px;">SETUP TIPS</div>
+        <div class="hint" style="color:rgba(255,255,255,0.85);line-height:1.6;">
+          Run Marvel Snap in <strong style="color:#C8952A;">windowed mode</strong> (not fullscreen) so ClipFury can access the system tray and capture the game.<br>
+          Use <strong style="color:#C8952A;">Proving Grounds</strong> to calibrate the Snap button — snapping there costs no cubes.
+        </div>
+      </div>
+
       <div class="section-head"><span>CLIP SETTINGS</span></div>
 
       <div class="field">
@@ -270,7 +279,39 @@
         </select>
       </div>
 
-      <div class="section-head" style="margin-top:16px;"><span>DETECTION</span></div>
+      <div class="field">
+        <label class="label">PRIMARY MONITOR RESOLUTION</label>
+        <select id="monitorRes">
+          <option value="1920x1080">1920x1080 (1080p)</option>
+          <option value="2560x1440">2560x1440 (1440p)</option>
+          <option value="3840x2160">3840x2160 (4K)</option>
+        </select>
+        <div class="hint">Used as fallback if Marvel Snap window isn't detected</div>
+      </div>
+
+      <div class="section-head" style="margin-top:16px;"><span>SNAP BUTTON DETECTION</span></div>
+
+      <!-- Calibration -->
+      <div class="field">
+        <div id="calibration-status" class="status" style="margin-bottom:10px;">
+          <div class="status-dot red" id="cal-dot"></div>
+          <span id="cal-text">Not calibrated</span>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <button class="btn btn-gold" id="calibrateBtn">CALIBRATE SNAP BUTTON</button>
+          <button class="btn btn-neutral" id="clearCalBtn" style="display:none;">CLEAR</button>
+        </div>
+        <div class="hint" style="margin-top:6px;line-height:1.6;">
+          <strong style="color:#C8952A;">TIP:</strong> Use <strong>Proving Grounds</strong> to calibrate — it's a free practice mode where snapping costs no cubes.<br><br>
+          1. Open Marvel Snap → Proving Grounds<br>
+          2. Click <strong>Calibrate</strong> above<br>
+          3. You have 5 seconds — switch to the game and click the Snap button<br>
+          4. ClipFury will detect all future snaps automatically
+        </div>
+        <div id="cal-countdown" style="display:none;margin-top:8px;font-family:'Anton',sans-serif;font-style:italic;font-size:1.4rem;color:#C8952A;letter-spacing:2px;"></div>
+      </div>
+
+      <div class="section-head" style="margin-top:16px;"><span>AUTO-UPLOAD</span></div>
 
       <div class="toggle-row" id="toggle-autoUpload">
         <div class="toggle-box" id="box-autoUpload"></div>
@@ -460,6 +501,7 @@
       document.getElementById("clipLength").value   = settings.clipLength  || 90;
       document.getElementById("saveDir").value      = settings.saveDir     || "";
       document.getElementById("quality").value      = settings.quality     || "1080p";
+      document.getElementById("monitorRes").value   = settings.monitorRes  || "3840x2160";
       document.getElementById("obsHost").value      = settings.obsHost     || "localhost";
       document.getElementById("obsPort").value      = settings.obsPort     || 4455;
       document.getElementById("obsPassword").value  = settings.obsPassword || "";
@@ -486,6 +528,7 @@
       settings.clipLength      = parseInt(document.getElementById("clipLength").value);
       settings.saveDir         = document.getElementById("saveDir").value;
       settings.quality         = document.getElementById("quality").value;
+      settings.monitorRes      = document.getElementById("monitorRes").value;
       settings.obsHost         = document.getElementById("obsHost").value;
       settings.obsPort         = parseInt(document.getElementById("obsPort").value);
       settings.obsPassword     = document.getElementById("obsPassword").value;
@@ -608,8 +651,78 @@
 
     document.getElementById("closeBtn").addEventListener("click", () => window.close());
 
+    // Calibration
+    async function loadCalibration() {
+      const cal = await ipcRenderer.invoke("get-calibration");
+      const dot  = document.getElementById("cal-dot");
+      const text = document.getElementById("cal-text");
+      const clearBtn = document.getElementById("clearCalBtn");
+
+      if (cal.x && cal.y) {
+        dot.className  = "status-dot green";
+        text.textContent = `Calibrated at (${cal.x}, ${cal.y})`;
+        clearBtn.style.display = "inline-block";
+      } else {
+        dot.className  = "status-dot red";
+        text.textContent = "Not calibrated — detection inactive";
+        clearBtn.style.display = "none";
+      }
+    }
+
+    document.getElementById("calibrateBtn").addEventListener("click", async () => {
+      const btn       = document.getElementById("calibrateBtn");
+      const countdown = document.getElementById("cal-countdown");
+      const dot       = document.getElementById("cal-dot");
+      const text      = document.getElementById("cal-text");
+
+      btn.disabled    = true;
+      btn.textContent = "WAITING...";
+      countdown.style.display = "block";
+
+      // 5 second countdown
+      let secs = 5;
+      countdown.textContent = `Click the Snap button in ${secs}s...`;
+      const timer = setInterval(() => {
+        secs--;
+        if (secs > 0) {
+          countdown.textContent = `Click the Snap button in ${secs}s...`;
+        } else {
+          countdown.textContent = "NOW! Click the Snap button!";
+          clearInterval(timer);
+        }
+      }, 1000);
+
+      // Wait for calibration result
+      dot.className = "status-dot yellow";
+      text.textContent = "Waiting for your click...";
+
+      try {
+        const result = await ipcRenderer.invoke("start-calibration");
+        clearInterval(timer);
+        countdown.style.display = "none";
+        btn.disabled    = false;
+        btn.textContent = "RECALIBRATE";
+        await loadCalibration();
+        showToast(`Calibrated! Snap button at (${result.x}, ${result.y})`);
+      } catch (err) {
+        clearInterval(timer);
+        countdown.style.display = "none";
+        btn.disabled    = false;
+        btn.textContent = "CALIBRATE SNAP BUTTON";
+        dot.className   = "status-dot red";
+        text.textContent = "Calibration failed — try again";
+      }
+    });
+
+    document.getElementById("clearCalBtn").addEventListener("click", async () => {
+      await ipcRenderer.invoke("save-settings", { snapButtonX: null, snapButtonY: null });
+      await loadCalibration();
+      showToast("Calibration cleared");
+    });
+
     // Init
     loadSettings();
+    loadCalibration();
   </script>
 </body>
 </html>

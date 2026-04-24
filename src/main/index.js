@@ -3,6 +3,7 @@ const path   = require("path");
 const fs     = require("fs");
 const Store  = require("electron-store");
 const { startAudioMonitor, stopAudioMonitor, triggerTestSnap } = require("../audio/monitor");
+const { startClickMonitor, stopClickMonitor, startCalibration, getClickMonitorStatus } = require("../audio/click-monitor");
 const { connectOBS, disconnectOBS, getOBSStatus } = require("../capture/obs");
 const { saveReplayBuffer, startBuiltinRecorder, stopBuiltinRecorder, saveTestClip } = require("../capture/recorder");
 const { uploadToSnapFury } = require("../upload/snapfury");
@@ -19,6 +20,9 @@ const store = new Store({
     obsPassword:   "",
     snapfuryToken: null,
     launchOnStartup: false,
+    snapButtonX:    null,
+    snapButtonY:    null,
+    monitorRes:     '2560x1440',
   }
 });
 
@@ -72,7 +76,7 @@ async function onSnapDetected(phrase, testMode = false) {
     }
   } catch (err) {
     console.error("Failed to save clip:", err);
-    notify("ClipFury", "Failed to save clip: " + err.message);
+    notify("ClipFury", err.message.includes("Borderless") ? err.message : "Failed to save clip: " + err.message);
   }
 }
 
@@ -96,6 +100,10 @@ function buildTrayMenu() {
       label:   `Recording: ${isMonitoring ? "Active" : "Stopped"}`,
       enabled: false,
       icon:    nativeImage.createEmpty(),
+    },
+    {
+      label:   `Snap Button: ${store.get("snapButtonX") ? `Calibrated (${store.get("snapButtonX")}, ${store.get("snapButtonY")})` : "Not calibrated — open Settings"}`,
+      enabled: false,
     },
     {
       label:   `OBS: ${obsStatus === "connected" ? "Connected" : "Not connected"}`,
@@ -243,6 +251,27 @@ ipcMain.handle("open-clips-dir",  ()          => shell.openPath(store.get("saveD
 ipcMain.handle("delete-clip",     (_, p)      => { try { fs.unlinkSync(p); return true; } catch { return false; } });
 ipcMain.handle("upload-snapfury", (_, p)      => uploadToSnapFury(p, store));
 ipcMain.handle("connect-obs",     ()          => connectOBS(store));
+
+ipcMain.handle("start-calibration", () => {
+  return new Promise((resolve) => {
+    notify("ClipFury", "Click the Snap button in Marvel Snap now!");
+    startCalibration((x, y) => {
+      store.set("snapButtonX", x);
+      store.set("snapButtonY", y);
+      // Restart click monitor with new position
+      stopClickMonitor();
+      startClickMonitor(x, y, onSnapDetected);
+      notify("ClipFury", `Snap button calibrated at (${x}, ${y}) — ready to detect!`);
+      rebuildTray();
+      resolve({ x, y });
+    });
+  });
+});
+
+ipcMain.handle("get-calibration", () => ({
+  x: store.get("snapButtonX"),
+  y: store.get("snapButtonY"),
+}));
 ipcMain.handle("test-detection", () => onSnapDetected("TEST", true));
 
 // Returns list of clips in the save directory
@@ -287,7 +316,17 @@ app.whenReady().then(async () => {
     }
   }
 
-  // Start audio monitoring (uses Electron's built-in Web Speech API)
+  // Start click monitor if calibrated (primary detection method)
+  const snapX = store.get("snapButtonX");
+  const snapY = store.get("snapButtonY");
+  if (snapX && snapY) {
+    startClickMonitor(snapX, snapY, onSnapDetected);
+    console.log(`Click monitor active at (${snapX}, ${snapY})`);
+  } else {
+    console.log("Snap button not calibrated yet — open Settings → Detection to calibrate");
+  }
+
+  // Start audio monitor as fallback
   await startAudioMonitor(onSnapDetected);
   isMonitoring = true;
 
@@ -303,5 +342,6 @@ app.on("window-all-closed", (e) => {
 
 app.on("before-quit", () => {
   stopAudioMonitor();
+  stopClickMonitor();
   disconnectOBS();
 });

@@ -14,7 +14,8 @@
   "dependencies": {
     "electron-store": "^8.2.0",
     "ffmpeg-static": "^5.2.0",
-    "obs-websocket-js": "^5.0.5"
+    "obs-websocket-js": "^5.0.5",
+    "uiohook-napi": "^1.5.4"
   },
   "devDependencies": {
     "cross-env": "^7.0.3",
