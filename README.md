@@ -1,16 +1,16 @@
 # ClipFury
 
-Automatic Marvel Snap clip capture for Windows. Listens for snap audio cues in real time and saves a clip automatically — no manual recording, no missed snaps.
+Automatic moment detection and clip capture for gaming content creators. ClipFury runs silently in your system tray and captures key gameplay moments automatically — no manual recording, no missed clips.
 
-Built with Electron, FFmpeg, and Chromium's built-in speech recognition.
+Built with Electron, FFmpeg, and uiohook-napi.
+
+**Download:** [clipfury.net](https://clipfury.net)
 
 ---
 
-## What It Does
+## How It Works
 
-ClipFury runs silently in your system tray while you play Marvel Snap. When it detects the snap audio cue ("Snap", "Oh Snap", "Opponent Snapped"), it saves a clip automatically. You get a notification, and the clip is ready to review, upload, or share.
-
-No external speech recognition engine required — ClipFury uses the speech recognition built into Electron's Chromium engine.
+ClipFury uses game profiles to define what a "moment" looks like for each title. For Marvel Snap, it detects clicks on the Snap button. When a moment is detected, FFmpeg captures the game window and saves a clip to your Videos folder automatically.
 
 ---
 
@@ -18,69 +18,96 @@ No external speech recognition engine required — ClipFury uses the speech reco
 
 ### Requirements
 
-- Windows 10 or later
-- Node.js 20 LTS (use nvm-windows to manage versions)
-- Marvel Snap installed (Steam)
+- Windows 10 or later (64-bit)
+- Node.js 20 LTS — use [nvm-windows](https://github.com/coreybutler/nvm-windows) to manage versions
+- Marvel Snap (Steam)
 
 ### Install
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/clipfury.git
+git clone https://github.com/GHFury/clipfury.git
 cd clipfury
 npm install
-```
-
-### Run
-
-```bash
 npm run dev
 ```
 
-ClipFury starts in the system tray. Right-click the tray icon to access settings and controls.
+ClipFury appears in the system tray. Right-click to access settings and controls.
 
 ---
 
-## Using OBS (Optional)
+## First Run
 
-If you already use OBS and want higher quality recordings:
+On first launch, Settings opens automatically. The important steps:
 
-1. Open OBS → Tools → WebSocket Server Settings → Enable
-2. In ClipFury → Settings → OBS tab, enter your connection details
-3. In OBS → Output → Replay Buffer, enable it and set duration to match your clip length
-4. Start the replay buffer in OBS before you play
+1. Go to the **Detection tab**
+2. Click **Calibrate Snap Button**
+3. Open Marvel Snap — go to **Proving Grounds** (snapping there costs no in-game currency)
+4. Click the Snap button in game within 5 seconds
+5. Done — ClipFury detects all future snaps automatically
 
-ClipFury uses OBS automatically when connected, falling back to the built-in recorder otherwise.
-
----
-
-## Settings
-
-Right-click the tray icon to access:
-
-- **Clip Length** — 60 seconds, 90 seconds, or 3 minutes
-- **Auto-upload** — automatically push clips to SnapFury after detection
-- **Open Clips Folder** — see all saved clips
-- **My Clips** — browse, preview, upload, or delete clips
-- **Pause Detection** — temporarily disable snap detection
+Marvel Snap must run in **windowed mode** (not fullscreen) for ClipFury to capture it.
 
 ---
 
-## Building a Distributable
+## Game Profiles
+
+| Game | Status | Detection Method |
+|---|---|---|
+| Marvel Snap | Available | Click detection |
+| Call of Duty | Coming soon | Region detection |
+| Fortnite | Coming soon | Region detection |
+| GTA Online | Coming soon | Region detection |
+| Marathon | Coming soon | Audio + Region |
+| Arc Raiders | Coming soon | Region detection |
+| Custom | Pro | User-defined |
+
+---
+
+## OBS Integration (Optional)
+
+For higher quality recordings, ClipFury can use OBS Replay Buffer instead of the built-in recorder:
+
+1. OBS → Tools → WebSocket Server Settings → Enable
+2. OBS → Output → Replay Buffer → Enable, set duration
+3. ClipFury → Settings → OBS tab → enter connection details → Connect
+
+ClipFury falls back to the built-in FFmpeg recorder if OBS is not connected.
+
+---
+
+## SnapFury Integration
+
+Connect your SnapFury account in Settings → SnapFury tab to enable one-click uploads. Enable Auto-upload to have every clip posted to the community automatically after detection.
+
+---
+
+## Building
+
+Run as Administrator (required for symlink permissions during packaging):
 
 ```bash
 npm run build
 ```
 
-Produces a Windows installer in `dist/`. For public distribution you will need a code signing certificate — without one Windows SmartScreen will warn users on install. Fine for development and internal testing.
+Produces `dist/ClipFury-Setup-0.1.1-beta.exe`. Without a code signing certificate, Windows SmartScreen will warn users on install — click More info → Run anyway.
 
 ---
 
-## Notes
+## Project Structure
 
-Detection phrases: "snap", "oh snap", "opponent snapped"
-
-The 8-second cooldown between detections prevents a single snap event from triggering multiple saves.
+```
+src/
+  main/index.js          Electron main process, system tray, IPC
+  audio/monitor.js       Speech recognition fallback (Chromium Web Speech API)
+  audio/click-monitor.js Global mouse click detection via uiohook-napi
+  capture/recorder.js    FFmpeg screen capture, OBS fallback
+  capture/obs.js         OBS WebSocket integration
+  upload/snapfury.js     SnapFury API upload
+  renderer/settings.html Settings window
+  renderer/clips.html    Clips browser window
+assets/                  Icons, installer graphics
+```
 
 ---
 
-Part of the SnapFury project. See snapfury.com.
+© 2025 ClipFury · Not affiliated with any game publisher · [clipfury.net](https://clipfury.net)
