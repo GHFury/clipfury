@@ -45,8 +45,6 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "ClipFury",
-      "installerHeader": "assets/installer-banner.bmp",
-      "installerSidebar": "assets/installer-wizard.bmp",
       "license": "LICENSE.txt",
       "artifactName": "ClipFury-Setup-${version}.exe"
     },

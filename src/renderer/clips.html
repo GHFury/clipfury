@@ -3,243 +3,68 @@
 <head>
   <meta charset="UTF-8" />
   <title>ClipFury — My Clips</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Anton&family=Special+Elite&family=Barlow+Condensed:wght@400;600;700&display=swap');
-
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-
-    body {
-      font-family: 'Special Elite', serif;
-      background: #f0e6c8;
-      color: #111;
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
-
-    .header {
-      background: #111;
-      border-bottom: 4px solid #C8952A;
-      padding: 12px 20px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-    .header-title {
-      font-family: 'Anton', sans-serif;
-      font-style: italic;
-      color: #C8952A;
-      font-size: 1.4rem;
-      letter-spacing: 3px;
-    }
-    .header-count {
-      font-family: 'Special Elite', serif;
-      color: #888;
-      font-size: 0.85rem;
-    }
-
-    .toolbar {
-      background: #f8f0d8;
-      border-bottom: 3px solid #111;
-      padding: 10px 16px;
-      display: flex;
-      gap: 10px;
-      align-items: center;
-    }
-    .btn {
-      font-family: 'Anton', sans-serif;
-      font-style: italic;
-      letter-spacing: 1px;
-      border: 3px solid #111;
-      cursor: pointer;
-      padding: 7px 14px;
-      font-size: 0.85rem;
-      transition: transform 0.1s, box-shadow 0.1s;
-      text-transform: uppercase;
-    }
-    .btn:hover  { transform: translate(-1px,-1px); box-shadow: 4px 4px 0 #111; }
-    .btn-gold   { background: #C8952A; color: #111; box-shadow: 3px 3px 0 #111; }
-    .btn-purple { background: #4A3DC8; color: white; box-shadow: 3px 3px 0 #111; }
-    .btn-red    { background: #8B2035; color: white; box-shadow: 3px 3px 0 #111; }
-    .btn-plain  { background: #f0e6c8; color: #111; box-shadow: 2px 2px 0 #111; }
-
-    .clips-grid {
-      flex: 1;
-      overflow-y: auto;
-      padding: 16px;
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-      gap: 16px;
-      align-content: start;
-    }
-
-    .clip-card {
-      border: 4px solid #111;
-      box-shadow: 5px 5px 0 #111;
-      background: white;
-      cursor: pointer;
-      overflow: hidden;
-      transition: transform 0.15s, box-shadow 0.15s;
-    }
-    .clip-card:hover {
-      transform: translate(-2px,-2px);
-      box-shadow: 7px 7px 0 #111;
-    }
-    .clip-card.selected {
-      outline: 3px solid #C8952A;
-      outline-offset: 3px;
-    }
-
-    .clip-thumb {
-      height: 130px;
-      background: linear-gradient(135deg, #1a1040, #4A3DC8);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      position: relative;
-      overflow: hidden;
-    }
-    .clip-thumb video {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-    .clip-play {
-      position: absolute;
-      width: 40px; height: 40px;
-      background: #C8952A;
-      border: 3px solid #111;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      box-shadow: 3px 3px 0 #111;
-      z-index: 2;
-      font-size: 1rem;
-    }
-    .clip-date {
-      position: absolute;
-      bottom: 6px; right: 6px;
-      background: rgba(0,0,0,0.7);
-      color: white;
-      font-family: 'Special Elite', serif;
-      font-size: 0.7rem;
-      padding: 2px 6px;
-    }
-
-    .clip-info {
-      padding: 10px 12px;
-      border-top: 3px solid #111;
-    }
-    .clip-name {
-      font-family: 'Anton', sans-serif;
-      font-style: italic;
-      font-size: 0.95rem;
-      letter-spacing: 0.5px;
-      margin-bottom: 4px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .clip-meta {
-      font-family: 'Special Elite', serif;
-      font-size: 0.75rem;
-      color: #888;
-      display: flex;
-      justify-content: space-between;
-    }
-
-    .clip-actions {
-      padding: 8px 10px;
-      border-top: 2px solid #eee;
-      display: flex;
-      gap: 6px;
-    }
-
-    .empty-state {
-      grid-column: 1 / -1;
-      text-align: center;
-      padding: 60px 20px;
-      border: 4px dashed #ccc;
-    }
-    .empty-title {
-      font-family: 'Anton', sans-serif;
-      font-style: italic;
-      font-size: 2rem;
-      color: #ccc;
-      display: block;
-      margin-bottom: 8px;
-    }
-    .empty-sub {
-      font-family: 'Special Elite', serif;
-      color: #aaa;
-    }
-
-    .footer {
-      background: #111;
-      border-top: 3px solid #C8952A;
-      padding: 8px 16px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .footer-text { font-family: 'Special Elite', serif; color: #666; font-size: 0.75rem; }
-
-    /* Upload status overlay */
-    .uploading-overlay {
-      display: none;
-      position: fixed; inset: 0;
-      background: rgba(0,0,0,0.6);
-      z-index: 100;
-      align-items: center;
-      justify-content: center;
-    }
-    .uploading-overlay.show { display: flex; }
-    .upload-box {
-      background: white;
-      border: 5px solid #111;
-      box-shadow: 10px 10px 0 #111;
-      padding: 32px 40px;
-      text-align: center;
-      min-width: 300px;
-    }
-    .upload-title {
-      font-family: 'Anton', sans-serif;
-      font-style: italic;
-      font-size: 1.5rem;
-      color: #4A3DC8;
-      margin-bottom: 12px;
-      letter-spacing: 2px;
-    }
-    .upload-bar-track {
-      height: 20px;
-      border: 3px solid #111;
-      background: #f0e6c8;
-      overflow: hidden;
-      box-shadow: 3px 3px 0 #111;
-    }
-    .upload-bar-fill {
-      height: 100%;
-      background: repeating-linear-gradient(45deg, #4A3DC8 0, #4A3DC8 8px, #3a2fb8 8px, #3a2fb8 16px);
-      transition: width 0.3s ease;
-      width: 0%;
-    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', sans-serif; background: #0a0a0a; color: white; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+    .header { background: #0f0f0f; border-bottom: 1px solid rgba(124,58,237,0.3); padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+    .header-left { display: flex; align-items: center; gap: 10px; }
+    .header-logo { font-family: 'Bebas Neue', sans-serif; font-size: 1.3rem; letter-spacing: 3px; background: linear-gradient(135deg, #fff, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .header-count { font-size: 0.72rem; color: rgba(255,255,255,0.25); letter-spacing: 1px; }
+    .toolbar { background: #0d0d0d; border-bottom: 1px solid rgba(255,255,255,0.06); padding: 10px 16px; display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+    .btn { font-family: 'Inter', sans-serif; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.5px; border: none; cursor: pointer; border-radius: 6px; padding: 7px 14px; transition: all 0.15s; text-transform: uppercase; }
+    .btn-primary  { background: linear-gradient(135deg, #7c3aed, #6d28d9); color: white; box-shadow: 0 0 16px rgba(124,58,237,0.3); }
+    .btn-primary:hover  { box-shadow: 0 0 24px rgba(124,58,237,0.5); transform: translateY(-1px); }
+    .btn-secondary { background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.6); border: 1px solid rgba(255,255,255,0.08); }
+    .btn-secondary:hover { background: rgba(255,255,255,0.09); color: white; }
+    .btn-danger { background: rgba(220,38,38,0.12); color: #f87171; border: 1px solid rgba(220,38,38,0.2); }
+    .btn-danger:hover { background: rgba(220,38,38,0.2); }
+    .btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
+    .selected-info { margin-left: auto; font-size: 0.72rem; color: rgba(255,255,255,0.3); font-style: italic; }
+    .clips-grid { flex: 1; overflow-y: auto; padding: 16px; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; align-content: start; scrollbar-width: thin; scrollbar-color: #7c3aed #0a0a0a; }
+    .clips-grid::-webkit-scrollbar { width: 3px; }
+    .clips-grid::-webkit-scrollbar-thumb { background: #7c3aed; border-radius: 2px; }
+    .clip-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 10px; cursor: pointer; overflow: hidden; transition: all 0.2s; }
+    .clip-card:hover { border-color: rgba(124,58,237,0.4); background: rgba(124,58,237,0.05); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
+    .clip-card.selected { border-color: #7c3aed; box-shadow: 0 0 0 1px #7c3aed, 0 8px 24px rgba(124,58,237,0.2); }
+    .clip-thumb { height: 120px; background: linear-gradient(135deg, #0f0820, #1a0a40); display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; }
+    .clip-thumb::before { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at center, rgba(124,58,237,0.15) 0%, transparent 70%); }
+    .play-btn { width: 36px; height: 36px; border-radius: 50%; background: rgba(124,58,237,0.8); border: 1px solid rgba(124,58,237,0.5); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 20px rgba(124,58,237,0.4); position: relative; z-index: 2; }
+    .play-icon { width: 0; height: 0; border-top: 7px solid transparent; border-bottom: 7px solid transparent; border-left: 12px solid white; margin-left: 2px; }
+    .clip-date { position: absolute; bottom: 6px; right: 8px; font-size: 0.65rem; color: rgba(255,255,255,0.3); background: rgba(0,0,0,0.5); padding: 2px 6px; border-radius: 4px; z-index: 2; }
+    .clip-info { padding: 10px 12px; }
+    .clip-name { font-size: 0.8rem; font-weight: 600; color: rgba(255,255,255,0.85); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 5px; }
+    .clip-meta { font-size: 0.7rem; color: rgba(255,255,255,0.3); display: flex; justify-content: space-between; }
+    .empty-state { grid-column: 1 / -1; text-align: center; padding: 60px 20px; }
+    .empty-title { font-family: 'Bebas Neue', sans-serif; font-size: 2rem; letter-spacing: 3px; background: linear-gradient(135deg, rgba(124,58,237,0.5), rgba(124,58,237,0.2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; display: block; margin-bottom: 10px; }
+    .empty-sub { font-size: 0.85rem; color: rgba(255,255,255,0.25); line-height: 1.6; }
+    .footer { background: #0f0f0f; border-top: 1px solid rgba(255,255,255,0.06); padding: 8px 16px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+    .footer-text { font-size: 0.68rem; color: rgba(255,255,255,0.2); letter-spacing: 0.5px; }
+    .upload-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(8px); z-index: 100; align-items: center; justify-content: center; }
+    .upload-overlay.show { display: flex; }
+    .upload-box { background: #111; border: 1px solid rgba(124,58,237,0.3); border-radius: 12px; padding: 32px 40px; text-align: center; min-width: 300px; box-shadow: 0 0 60px rgba(124,58,237,0.2); }
+    .upload-title { font-family: 'Bebas Neue', sans-serif; font-size: 1.5rem; letter-spacing: 3px; background: linear-gradient(135deg, #fff, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 20px; }
+    .upload-bar-track { height: 3px; background: rgba(255,255,255,0.06); border-radius: 2px; overflow: hidden; margin-bottom: 12px; }
+    .upload-bar-fill { height: 100%; background: linear-gradient(90deg, #7c3aed, #a78bfa); border-radius: 2px; transition: width 0.3s ease; width: 0%; }
+    .upload-status-text { font-size: 0.78rem; color: rgba(255,255,255,0.4); }
   </style>
 </head>
 <body>
-
   <div class="header">
-    <img src="../../assets/logo-header.png" alt="ClipFury" style="width:28px;height:28px;border-radius:50%;border:2px solid #C8952A;margin-right:2px;" />
-    <div class="header-title">CLIPFURY — MY CLIPS</div>
+    <div class="header-left">
+      <img src="../../assets/logo-header.png" alt="ClipFury" style="width:28px;height:28px;border-radius:50%;border:1px solid rgba(124,58,237,0.5);" />
+      <div class="header-logo">CLIPFURY</div>
+      <span style="color:rgba(255,255,255,0.15);font-size:0.75rem;">—</span>
+      <span style="font-size:0.78rem;color:rgba(255,255,255,0.35);font-weight:500;">MY CLIPS</span>
+    </div>
     <div class="header-count" id="clip-count">Loading...</div>
   </div>
 
   <div class="toolbar">
-    <button class="btn btn-gold"   id="uploadSelected"  disabled>UPLOAD TO SNAPFURY</button>
-    <button class="btn btn-purple" id="openFolder">OPEN FOLDER</button>
-    <button class="btn btn-red"    id="deleteSelected"  disabled>DELETE</button>
-    <div style="margin-left:auto;font-family:'Special Elite',serif;font-size:0.8rem;color:#888;" id="selected-info"></div>
+    <button class="btn btn-primary"   id="uploadSelected" disabled>Upload to SnapFury</button>
+    <button class="btn btn-secondary" id="openFolder">Open Folder</button>
+    <button class="btn btn-danger"    id="deleteSelected" disabled>Delete</button>
+    <div class="selected-info" id="selected-info"></div>
   </div>
 
   <div class="clips-grid" id="clips-grid">
@@ -249,17 +74,15 @@
   </div>
 
   <div class="footer">
-    <span class="footer-text">Double-click a clip to play it · Select to upload or delete</span>
+    <span class="footer-text">Double-click to open · Select to upload or delete</span>
     <span class="footer-text" id="storage-info"></span>
   </div>
 
-  <div class="uploading-overlay" id="uploading-overlay">
+  <div class="upload-overlay" id="upload-overlay">
     <div class="upload-box">
-      <div class="upload-title">UPLOADING...</div>
-      <div class="upload-bar-track">
-        <div class="upload-bar-fill" id="upload-bar"></div>
-      </div>
-      <div style="font-family:'Special Elite',serif;font-size:0.85rem;color:#888;margin-top:10px;" id="upload-status-text">Preparing...</div>
+      <div class="upload-title">UPLOADING</div>
+      <div class="upload-bar-track"><div class="upload-bar-fill" id="upload-bar"></div></div>
+      <div class="upload-status-text" id="upload-status-text">Preparing...</div>
     </div>
   </div>
 
@@ -272,66 +95,55 @@
     let selectedClip = null;
 
     function formatSize(bytes) {
-      if (bytes > 1e9) return (bytes / 1e9).toFixed(1) + " GB";
-      if (bytes > 1e6) return (bytes / 1e6).toFixed(1) + " MB";
-      return (bytes / 1e3).toFixed(0) + " KB";
+      if (bytes > 1e9) return (bytes/1e9).toFixed(1)+" GB";
+      if (bytes > 1e6) return (bytes/1e6).toFixed(1)+" MB";
+      return (bytes/1e3).toFixed(0)+" KB";
     }
-
     function formatDate(ms) {
-      return new Date(ms).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+      return new Date(ms).toLocaleDateString("en-US", { month:"short", day:"numeric", hour:"2-digit", minute:"2-digit" });
     }
 
     function render() {
-      const grid     = document.getElementById("clips-grid");
-      const countEl  = document.getElementById("clip-count");
+      const grid      = document.getElementById("clips-grid");
+      const countEl   = document.getElementById("clip-count");
       const storageEl = document.getElementById("storage-info");
 
       if (clips.length === 0) {
-        grid.innerHTML = `
-          <div class="empty-state">
-            <span class="empty-title">NO CLIPS YET</span>
-            <div class="empty-sub">Play Marvel Snap and snap to capture your first clip.</div>
-          </div>`;
+        grid.innerHTML = `<div class="empty-state"><span class="empty-title">NO CLIPS YET</span><div class="empty-sub">Play Marvel Snap and snap to capture your first clip.<br>Clips appear here automatically.</div></div>`;
         countEl.textContent = "0 clips";
         storageEl.textContent = "";
         return;
       }
 
-      const totalSize = clips.reduce((acc, c) => acc + c.size, 0);
+      const totalSize = clips.reduce((a, c) => a + c.size, 0);
       countEl.textContent = `${clips.length} clip${clips.length !== 1 ? "s" : ""}`;
-      storageEl.textContent = `${formatSize(totalSize)} total`;
+      storageEl.textContent = formatSize(totalSize) + " total";
 
       grid.innerHTML = clips.map((clip, i) => `
         <div class="clip-card ${selectedClip === clip.path ? "selected" : ""}" data-path="${clip.path}" data-index="${i}">
           <div class="clip-thumb">
-            <div class="clip-play">▶</div>
+            <div class="play-btn"><div class="play-icon"></div></div>
             <div class="clip-date">${formatDate(clip.created)}</div>
           </div>
           <div class="clip-info">
             <div class="clip-name" title="${clip.name}">${clip.name}</div>
-            <div class="clip-meta">
-              <span>${formatSize(clip.size)}</span>
-              <span>${formatDate(clip.created)}</span>
-            </div>
+            <div class="clip-meta"><span>${formatSize(clip.size)}</span><span>${formatDate(clip.created)}</span></div>
           </div>
         </div>
       `).join("");
 
-      // Attach events
       grid.querySelectorAll(".clip-card").forEach(card => {
-        card.addEventListener("click", () => selectClip(card.dataset.path));
+        card.addEventListener("click",    () => selectClip(card.dataset.path));
         card.addEventListener("dblclick", () => shell.openPath(card.dataset.path));
       });
     }
 
     function selectClip(clipPath) {
       selectedClip = clipPath === selectedClip ? null : clipPath;
-      const hasSelection = !!selectedClip;
-      document.getElementById("uploadSelected").disabled  = !hasSelection;
-      document.getElementById("deleteSelected").disabled  = !hasSelection;
-      document.getElementById("selected-info").textContent = hasSelection
-        ? `Selected: ${path.basename(selectedClip)}`
-        : "";
+      const has = !!selectedClip;
+      document.getElementById("uploadSelected").disabled  = !has;
+      document.getElementById("deleteSelected").disabled  = !has;
+      document.getElementById("selected-info").textContent = has ? path.basename(selectedClip) : "";
       render();
     }
 
@@ -340,9 +152,7 @@
       render();
     }
 
-    document.getElementById("openFolder").addEventListener("click", () => {
-      ipcRenderer.invoke("open-clips-dir");
-    });
+    document.getElementById("openFolder").addEventListener("click", () => ipcRenderer.invoke("open-clips-dir"));
 
     document.getElementById("deleteSelected").addEventListener("click", async () => {
       if (!selectedClip) return;
@@ -357,36 +167,28 @@
 
     document.getElementById("uploadSelected").addEventListener("click", async () => {
       if (!selectedClip) return;
-      const overlay  = document.getElementById("uploading-overlay");
+      const overlay  = document.getElementById("upload-overlay");
       const bar      = document.getElementById("upload-bar");
       const statusTx = document.getElementById("upload-status-text");
-
       overlay.classList.add("show");
-      bar.style.width = "20%";
+      bar.style.width = "15%";
       statusTx.textContent = "Uploading to SnapFury...";
-
-      // Simulate progress while actual upload runs
-      let fakeProgress = 20;
-      const progressInterval = setInterval(() => {
-        if (fakeProgress < 85) { fakeProgress += 5; bar.style.width = fakeProgress + "%"; }
-      }, 300);
-
+      let progress = 15;
+      const interval = setInterval(() => { if (progress < 85) { progress += 4; bar.style.width = progress + "%"; } }, 300);
       try {
         await ipcRenderer.invoke("upload-snapfury", selectedClip);
-        clearInterval(progressInterval);
+        clearInterval(interval);
         bar.style.width = "100%";
-        statusTx.textContent = "Uploaded!";
+        statusTx.textContent = "Upload complete!";
         setTimeout(() => overlay.classList.remove("show"), 1500);
       } catch (err) {
-        clearInterval(progressInterval);
+        clearInterval(interval);
         overlay.classList.remove("show");
         alert("Upload failed: " + err.message);
       }
     });
 
-    // Refresh when main process says clips updated
     ipcRenderer.on("clips-updated", loadClips);
-
     loadClips();
   </script>
 </body>
